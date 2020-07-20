@@ -11,8 +11,20 @@ from . import realignmentFunction
 from . import annotationFunction
 from . import edlibFunction
 from . import utils
+from . import sam2psl
 from scipy import stats
 
+def fasta2fastq(inputFilePath, outputFilePath):
+    with open(inputFilePath) as r, open(outputFilePath, 'w') as w:
+        lines = []
+        for line in r:
+            lines.append(line)
+            if len(lines) == 2:
+                w.write(re.sub('^>', '@', lines[0]))
+                w.write(lines[1])
+                w.write('+\n')
+                w.write('!' * (len(lines[1])-1)); w.write('\n')
+                lines = []
 
 def genomon_sv_filt_main(output_prefix, args, thread_str = ""):
 
@@ -43,13 +55,13 @@ def genomon_sv_filt_main(output_prefix, args, thread_str = ""):
                 output_prefix + ".junction.clustered.filt5.bedpe",
                 args.close_check_margin, args.close_check_thres)
 
-    realignment_tool = 'blat' if args.blat == True else 'edlib'
+    realignment_tool = 'bwa' if args.bwa else 'edlib'
     utils.processingMessage("Performing realignments using " + realignment_tool + thread_str)
     validateByRealignment(output_prefix + ".junction.clustered.filt5.bedpe",
                           output_prefix + ".junction.clustered.filt6.bedpe",
-                          args.bam_file, args.matched_control_bam, args.reference_genome, args.blat_option,
+                          args.bam_file, args.matched_control_bam, args.reference_genome, args.bwa_option,
                           args.short_tandem_reapeat_thres, args.max_depth, args.search_length, args.search_margin, 
-                          args.split_refernece_thres, args.validate_sequence_length, args.blat)
+                          args.split_refernece_thres, args.validate_sequence_length, args.bwa)
 
     utils.processingMessage("Filtering allele frequencies, Fisher's exact test p-values and # of support read pairs" + thread_str)
     filterNumAFFis(output_prefix + ".junction.clustered.filt6.bedpe", 
@@ -467,13 +479,15 @@ def removeClose(inputFilePath, outputFilePath, close_check_margin, close_check_t
 
 
 
-def validateByRealignment(inputFilePath, outputFilePath, tumorBamFilePath, normalBamFilePath, reference_genome, blat_option,
-                          short_tandem_reapeat_thres, max_depth, search_length, search_margin, split_refernece_thres, validate_sequence_length, f_blat):
+def validateByRealignment(inputFilePath, outputFilePath, tumorBamFilePath, normalBamFilePath, reference_genome, bwa_option,
+                          short_tandem_reapeat_thres, max_depth, search_length, search_margin, split_refernece_thres, validate_sequence_length, uses_bwa):
 
 
     hIN = open(inputFilePath, 'r')
     hOUT = open(outputFilePath, 'w')
-    blat_cmds = ("blat " + blat_option).split(' ')
+    bwa_path = 'bwa'
+    bwa_options = bwa_option.split() if bwa_option else []
+    bwa_cmds = [bwa_path, 'mem'] + bwa_options
 
     num = 1
     for line in hIN:
@@ -509,19 +523,40 @@ def validateByRealignment(inputFilePath, outputFilePath, tumorBamFilePath, norma
 
         tumorRef, tumorAlt = "---", "---"
         normalRef, normalAlt = "---", "---"
-        if f_blat == True:
+
+        if uses_bwa:
+            FNULL = open(os.devnull, 'w')
+            subprocess.check_call([bwa_path, 'index', outputFilePath + ".tmp.refalt.fa"],
+                                  stdout=FNULL, stderr=subprocess.STDOUT)
 
             ####################
             # alignment tumor short reads to the reference and alternative sequences
-            FNULL = open(os.devnull, 'w')
-            subprocess.call(blat_cmds + [outputFilePath + ".tmp.refalt.fa", outputFilePath + ".tmp.tumor.fa", outputFilePath + ".tmp.tumor.psl"],
-                        stdout = FNULL, stderr = subprocess.STDOUT)
-        
+            fasta2fastq(outputFilePath + ".tmp.tumor.fa",
+                        outputFilePath + ".tmp.tumor.fastq")
+            with open(outputFilePath + ".tmp.tumor.sam", 'w') as f:
+                subprocess.call(
+                    bwa_cmds + [
+                        outputFilePath + ".tmp.refalt.fa",
+                        outputFilePath + ".tmp.tumor.fastq"
+                    ], stdout=f, stderr=FNULL
+                )
+            sam2psl.convert(outputFilePath + ".tmp.tumor.sam",
+                            outputFilePath + ".tmp.tumor.psl")
+
             ####################
             # alignment normal short reads to the reference and alternative sequences
             if normalBamFilePath != "":
-                subprocess.call(blat_cmds + [outputFilePath + ".tmp.refalt.fa", outputFilePath + ".tmp.normal.fa", outputFilePath + ".tmp.normal.psl"],
-                            stdout = FNULL, stderr = subprocess.STDOUT)
+                fasta2fastq(outputFilePath + ".tmp.normal.fa",
+                            outputFilePath + ".tmp.normal.fastq")
+                with open(outputFilePath + ".tmp.normal.sam", 'w') as f:
+                    subprocess.call(
+                        bwa_cmds + [
+                            outputFilePath + ".tmp.refalt.fa",
+                            outputFilePath + ".tmp.normal.fastq"
+                        ], stdout=f, stderr=FNULL
+                    )
+                sam2psl.convert(outputFilePath + ".tmp.normal.sam",
+                                outputFilePath + ".tmp.normal.psl")
 
             FNULL.close()
 
@@ -557,9 +592,16 @@ def validateByRealignment(inputFilePath, outputFilePath, tumorBamFilePath, norma
 
     
     if num > 1:
-        subprocess.call(["rm", outputFilePath + ".tmp.tumor.fa"])
         subprocess.call(["rm", outputFilePath + ".tmp.refalt.fa"])
-        if f_blat == True:
+        subprocess.call(["rm", outputFilePath + ".tmp.refalt.fa.amb"])
+        subprocess.call(["rm", outputFilePath + ".tmp.refalt.fa.ann"])
+        subprocess.call(["rm", outputFilePath + ".tmp.refalt.fa.bwt"])
+        subprocess.call(["rm", outputFilePath + ".tmp.refalt.fa.pac"])
+        subprocess.call(["rm", outputFilePath + ".tmp.refalt.fa.sa"])
+        subprocess.call(["rm", outputFilePath + ".tmp.tumor.fa"])
+        if uses_bwa:
+            subprocess.call(["rm", outputFilePath + ".tmp.tumor.fastq"])
+            subprocess.call(["rm", outputFilePath + ".tmp.tumor.sam"])
             subprocess.call(["rm", outputFilePath + ".tmp.tumor.psl"])
         else:
             subprocess.call(["rm", outputFilePath + ".tmp.tumor.edlib"])
@@ -567,7 +609,9 @@ def validateByRealignment(inputFilePath, outputFilePath, tumorBamFilePath, norma
 
         if normalBamFilePath != "":
             subprocess.call(["rm", outputFilePath + ".tmp.normal.fa"])
-            if f_blat == True:
+            if uses_bwa:
+                subprocess.call(["rm", outputFilePath + ".tmp.normal.fastq"])
+                subprocess.call(["rm", outputFilePath + ".tmp.normal.sam"])
                 subprocess.call(["rm", outputFilePath + ".tmp.normal.psl"])
             else:
                 subprocess.call(["rm", outputFilePath + ".tmp.normal.edlib"])

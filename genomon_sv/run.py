@@ -201,7 +201,7 @@ def genomonSV_filt(args):
     utils.processingMessage("performing realignments")
     filterFunction.validateByRealignment(args.output_prefix + ".junction.clustered.filt5.bedpe",
                     args.output_prefix + ".junction.clustered.filt6.bedpe",
-                    args.bam_file, args.matched_control_bam, args.reference_genome, args.blat_option,
+                    args.bam_file, args.matched_control_bam, args.reference_genome, args.bwa_option,
                     args.short_tandem_reapeat_thres, args.max_depth, args.search_length, args.search_margin, 
                     args.split_refernece_thres, args.validate_sequence_length)
 

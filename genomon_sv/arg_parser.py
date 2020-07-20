@@ -130,7 +130,7 @@ def create_parser():
     filt_parser.add_argument('--thread_num', default = 1, type=int,
                              help = "The number of threads")
 
-    filt_parser.add_argument("--blat", default = False, action = 'store_true', help = "use blat in the realignment function")
+    filt_parser.add_argument("--bwa", default = False, action = 'store_true', help = "use bwa in the realignment function")
 
     filter_condition_group = filt_parser.add_argument_group("filter_condition",
                                                              "Parameters used in various filtering steps in GenomonSV filt command")
@@ -188,8 +188,8 @@ def create_parser():
                                              help = "Threshold for identifying short tandem duplication length (since STD has slightly different approach for realignment validation), \
                                                      this value should be significantly larger than the read length (default: %(default)s)")
 
-    realignment_condition_group.add_argument("--blat_option", type = str, default = "-stepSize=5 -repMatch=2253",
-                                             help = "Option used in blat")
+    realignment_condition_group.add_argument("--bwa_option", type = str, default = None,
+                                             help = "Option used in bwa")
 
     realignment_condition_group.add_argument("--min_tumor_variant_read_pair", type = int, default = 3,
                                              help = "Minimum required number of read pairs in tumor sample (default: %(default)s)")
