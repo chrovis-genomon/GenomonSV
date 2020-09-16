@@ -33,9 +33,8 @@ RUN pip install numpy==1.15.1
 RUN pip install scipy==1.1.0
 RUN pip install edlib
 
-RUN git clone -b feature/blat-replacement https://github.com/chrovis-genomon/GenomonSV.git && \
-    cd GenomonSV && \
-    python setup.py install
+COPY . /root/GenomonSV
+RUN cd /root/GenomonSV && python setup.py install
 
 # for blat
 RUN apt-get update && apt-get install -y \
