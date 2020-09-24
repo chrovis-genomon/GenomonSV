@@ -2,6 +2,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Build Status](https://travis-ci.org/Genomon-Project/GenomonSV.svg?branch=devel)](https://travis-ci.org/Genomon-Project/GenomonSV)
+[![build](https://github.com/chrovis-genomon/GenomonSV/workflows/build/badge.svg)](https://github.com/chrovis-genomon/GenomonSV/actions)
 
 ## Introduction
 

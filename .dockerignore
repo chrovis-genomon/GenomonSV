@@ -1,5 +1,6 @@
+.dockerignore
+.git
+.github
+.travis.yml
 LICENSE
-README.md
-genomon_sv
-setup.py
 tests
