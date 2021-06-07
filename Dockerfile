@@ -24,8 +24,8 @@ RUN wget https://github.com/samtools/htslib/releases/download/1.7/htslib-1.7.tar
     make && \
     make install
 
-RUN pip install --upgrade pip
-RUN pip install --upgrade setuptools
+RUN pip install 'pip>=20,<21'
+RUN pip install 'setuptools>=44,<45'
 
 RUN pip install annot_utils==0.2.1
 RUN pip install pysam==0.15
